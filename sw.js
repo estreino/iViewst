@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pwa-viewer-v2';
+const CACHE_NAME = 'pwa-viewer-final-v1';
 const ASSETS = [
   './index.html',
   './manifest.json'

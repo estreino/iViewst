@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>iOS Immersive PWA Viewer</title>
+    <title>iOS Immersive PWA Viewer - Final</title>
     <style>
         * {
             box-sizing: border-box;
@@ -14,30 +14,41 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             -webkit-user-select: none;
             user-select: none;
-            -webkit-touch-callout: none; /* Bloqueia menu nativo do iOS em toque longo */
+            -webkit-touch-callout: none;
         }
         body, html {
-            width: 100%;
-            height: 100%;
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
             background-color: #000000;
             color: #ffffff;
             overflow: hidden;
             position: fixed;
+            top: 0;
+            left: 0;
+            margin: 0;
+            padding: 0;
         }
 
-        /* Container Principal assume 100% da tela imersiva */
+        /* Container Principal assume 100% absoluto da tela (True Full Screen) */
         #app-container {
             width: 100%;
             height: 100%;
+            height: 100dvh;
             position: absolute;
             top: 0;
             left: 0;
+            right: 0;
+            bottom: 0;
             z-index: 1;
+            margin: 0;
+            padding: 0;
         }
 
         .welcome-msg {
             width: 100%;
             height: 100%;
+            height: 100dvh;
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -56,11 +67,11 @@
             font-size: 14px;
         }
 
-        /* Botão Mestre Flutuante (Engrenagem) com Transparência Dinâmica */
+        /* Botão Mestre Flutuante livre até as extremidades 0px */
         #floating-gear {
             position: absolute;
-            bottom: 40px;
-            right: 25px;
+            bottom: 30px;
+            right: 20px;
             width: 56px;
             height: 56px;
             background-color: rgba(28, 28, 30, 0.9);
@@ -88,14 +99,13 @@
             fill: #ffffff;
         }
 
-        /* Menu Vertical Flutuante */
+        /* Menu Vertical Flutuante ancorado dinamicamente na engrenagem */
         #floating-menu {
             position: absolute;
-            bottom: 110px;
-            right: 25px;
             width: 300px;
-            max-height: calc(100vh - 160px);
-            background-color: rgba(28, 28, 30, 0.95);
+            max-height: calc(100vh - 100px);
+            max-height: calc(100dvh - 100px);
+            background-color: rgba(28, 28, 30, 0.96);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
             border: 1px solid #3a3a3c;
@@ -105,11 +115,11 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.9);
             z-index: 9998;
             overflow: hidden;
-            animation: menuPop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            animation: menuPop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
         }
         @keyframes menuPop {
-            0% { opacity: 0; transform: scale(0.8) translateY(20px); }
-            100% { opacity: 1; transform: scale(1) translateY(0); }
+            0% { opacity: 0; transform: scale(0.8); }
+            100% { opacity: 1; transform: scale(1); }
         }
 
         .menu-header {
@@ -149,7 +159,7 @@
 
         .project-list {
             overflow-y: auto;
-            max-height: 240px;
+            max-height: 220px;
             padding: 8px;
         }
         .project-item {
@@ -201,7 +211,7 @@
             border: none;
             color: #8e8e93;
             cursor: pointer;
-            padding: 4px;
+            padding: 6px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -238,7 +248,7 @@
         /* Modais */
         .modal-overlay {
             position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
+            top: 0; left: 0; width: 100vw; height: 100vh; height: 100dvh;
             background-color: rgba(0,0,0,0.7);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
@@ -298,10 +308,10 @@
             cursor: pointer;
         }
 
-        /* Tela de Visualização de Código (.html completo) */
+        /* Tela de Visualizador de Código */
         #code-viewer-screen {
             position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
+            top: 0; left: 0; width: 100vw; height: 100vh; height: 100dvh;
             background-color: #000000;
             z-index: 11000;
             display: none;
@@ -360,7 +370,7 @@
 </head>
 <body>
 
-    <!-- Container onde o projeto importado assume 100% da tela via Iframe sandbox total -->
+    <!-- Container do Projeto Ativo (True Full Screen 100dvh) -->
     <div id="app-container">
         <div id="welcome-state" class="welcome-msg">
             <h1>Nenhum Projeto Ativo</h1>
@@ -368,7 +378,7 @@
         </div>
     </div>
 
-    <!-- Botão Mestre Flutuante com Inteligência Silenciosa de Transparência -->
+    <!-- Botão Mestre Flutuante (Livre até 0px das bordas) -->
     <div id="floating-gear" title="Menu Mestre">
         <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36.25c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c-.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-.25c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
     </div>
@@ -393,7 +403,7 @@
         
         <div class="project-list" id="project-list-container"></div>
 
-        <div class="notif-section">
+        <div class="notif-section" id="notification-section">
             <span class="notif-label">Notificações Push</span>
             <button class="notif-action-btn" id="btn-request-notif">Ativar</button>
         </div>
@@ -411,7 +421,7 @@
         </div>
     </div>
 
-    <!-- Tela Completa de Visualização de Código (.html completo) -->
+    <!-- Tela Completa de Visualizador de Código -->
     <div id="code-viewer-screen">
         <div class="viewer-header">
             <span class="viewer-title" id="viewer-project-title">Código Fonte</span>
@@ -428,28 +438,24 @@
 
     <script>
         // ==========================================
-        // GUARDIÃO SILENCIOSO (Inteligência Oculta)
+        // GUARDIÃO SILENCIOSO & INTELIGÊNCIA FINAL
         // ==========================================
         const SilentGuardian = {
             init() {
                 this.setupViewportMonitor();
                 this.setupAutoSaveGuardian();
                 this.setupIdleTransparency();
-                this.setupSilentErrorCatcher();
+                this.setupGlobalClickCloser();
             },
-            // Garante 100% da tela e adaptação automática contra redimensionamentos de teclado/orientação no iOS WebKit
             setupViewportMonitor() {
                 const adjust = () => {
                     const vh = window.innerHeight * 0.01;
                     document.documentElement.style.setProperty('--vh', `${vh}px`);
                 };
                 window.addEventListener('resize', adjust);
-                window.addEventListener('orientationchange', () => {
-                    setTimeout(adjust, 200);
-                });
+                window.addEventListener('orientationchange', () => setTimeout(adjust, 200));
                 adjust();
             },
-            // Valida integridade e sincronização do Auto-Save em tempo real
             setupAutoSaveGuardian() {
                 window.addEventListener('storage', (e) => {
                     if (e.key === 'ios_pwa_projects') {
@@ -457,11 +463,10 @@
                             state.projects = JSON.parse(e.newValue);
                             renderApp();
                             renderProjectList();
-                        } catch(err) { /* Silencioso */ }
+                        } catch(err) {}
                     }
                 });
             },
-            // Gerencia o botão mestre: fica 50% transparente após 2 segundos sem mexer, voltando 100% ao toque/movimento
             setupIdleTransparency() {
                 const gear = document.getElementById('floating-gear');
                 let idleTimer = null;
@@ -470,7 +475,6 @@
                     gear.classList.remove('translucent');
                     if (idleTimer) clearTimeout(idleTimer);
                     idleTimer = setTimeout(() => {
-                        // Só fica translúcido se o menu estiver fechado
                         const menu = document.getElementById('floating-menu');
                         if (menu.style.display !== 'flex') {
                             gear.classList.add('translucent');
@@ -483,17 +487,24 @@
                 });
                 resetTimer();
             },
-            // Captura erros silenciosamente para evitar que falhas em projetos importados quebrem o app base
-            setupSilentErrorCatcher() {
-                window.addEventListener('error', (e) => {
-                    // Erros vindos de iframes ou scripts externos são contained
-                    e.preventDefault();
+            setupGlobalClickCloser() {
+                window.addEventListener('click', (e) => {
+                    const menu = document.getElementById('floating-menu');
+                    const gear = document.getElementById('floating-gear');
+                    const pasteModal = document.getElementById('paste-modal');
+                    const codeViewer = document.getElementById('code-viewer-screen');
+
+                    if (menu.style.display === 'flex') {
+                        if (!menu.contains(e.target) && !gear.contains(e.target) && pasteModal.style.display !== 'flex' && codeViewer.style.display !== 'flex') {
+                            menu.style.display = 'none';
+                        }
+                    }
                 });
             }
         };
 
         // ==========================================
-        // GERENCIAMENTO DE ESTADO E PROJETOS
+        // ESTADO GLOBAL & PERSISTÊNCIA
         // ==========================================
         let state = {
             projects: [],
@@ -504,9 +515,7 @@
             try {
                 localStorage.setItem('ios_pwa_projects', JSON.stringify(state.projects));
                 localStorage.setItem('ios_pwa_active', state.activeProjectId);
-            } catch(e) {
-                console.error("Auto-Save Guardian recuperou erro de armazenamento", e);
-            }
+            } catch(e) {}
         }
 
         function loadState() {
@@ -521,14 +530,15 @@
         }
 
         // ==========================================
-        // INICIALIZAÇÃO DO APLICATIVO
+        // INICIALIZAÇÃO
         // ==========================================
         window.addEventListener('DOMContentLoaded', () => {
             SilentGuardian.init();
             loadState();
             renderApp();
-            setupDraggableGear();
+            setupDraggableGearAndMenu();
             setupEventListeners();
+            checkNotificationStatus();
             
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('./sw.js').catch(() => {});
@@ -536,18 +546,40 @@
         });
 
         // ==========================================
-        // BOTÃO MESTRE FLUTUANTE (Arrastar & Toque)
+        // BOTÃO MESTRE (Livre até 0px das bordas) + RESET 2S
         // ==========================================
-        function setupDraggableGear() {
+        function setupDraggableGearAndMenu() {
             const gear = document.getElementById('floating-gear');
             const menu = document.getElementById('floating-menu');
             let isDragging = false;
             let startX, startY, initialX, initialY;
             let hasMoved = false;
+            let longPressTimer = null;
+            let resetTriggered = false;
+
+            function positionMenu() {
+                const gearRect = gear.getBoundingClientRect();
+                const menuWidth = 300;
+                
+                let left = gearRect.left + (gearRect.width / 2) - (menuWidth / 2);
+                if (left < 5) left = 5;
+                if (left + menuWidth > window.innerWidth - 5) left = window.innerWidth - menuWidth - 5;
+
+                menu.style.left = left + 'px';
+                
+                if (gearRect.top > window.innerHeight / 2) {
+                    menu.style.bottom = (window.innerHeight - gearRect.top + 10) + 'px';
+                    menu.style.top = 'auto';
+                } else {
+                    menu.style.top = (gearRect.bottom + 10) + 'px';
+                    menu.style.bottom = 'auto';
+                }
+            }
 
             function pointerDown(e) {
-                isDragging = true;
+                isDragging = false;
                 hasMoved = false;
+                resetTriggered = false;
                 const clientX = e.touches ? e.touches[0].clientX : e.clientX;
                 const clientY = e.touches ? e.touches[0].clientY : e.clientY;
                 startX = clientX;
@@ -557,27 +589,49 @@
                 initialX = rect.left;
                 initialY = rect.top;
                 gear.style.transition = 'none';
+
+                longPressTimer = setTimeout(() => {
+                    resetTriggered = true;
+                    if (navigator.vibrate) navigator.vibrate(80);
+                    if (confirm("⚠️ DESEJA FAZER UM RESET DE FÁBRICA?
+Isso apagará todos os projetos salvos e restaurará o aplicativo ao padrão inicial.")) {
+                        localStorage.clear();
+                        state.projects = [];
+                        state.activeProjectId = null;
+                        renderApp();
+                        renderProjectList();
+                        menu.style.display = 'none';
+                        alert("Aplicativo restaurado para o padrão de fábrica com sucesso!");
+                    }
+                }, 2000);
             }
 
             function pointerMove(e) {
-                if (!isDragging) return;
                 const clientX = e.touches ? e.touches[0].clientX : e.clientX;
                 const clientY = e.touches ? e.touches[0].clientY : e.clientY;
                 
                 const dx = clientX - startX;
                 const dy = clientY - startY;
                 
-                if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+                if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
                     hasMoved = true;
+                    if (longPressTimer) {
+                        clearTimeout(longPressTimer);
+                        longPressTimer = null;
+                    }
+                    isDragging = true;
                 }
+
+                if (!isDragging) return;
 
                 let newX = initialX + dx;
                 let newY = initialY + dy;
 
                 const maxW = window.innerWidth - gear.offsetWidth;
                 const maxH = window.innerHeight - gear.offsetHeight;
-                newX = Math.max(10, Math.min(newX, maxW - 10));
-                newY = Math.max(10, Math.min(newY, maxH - 10));
+                
+                newX = Math.max(0, Math.min(newX, maxW));
+                newY = Math.max(0, Math.min(newY, maxH));
 
                 gear.style.left = newX + 'px';
                 gear.style.top = newY + 'px';
@@ -586,18 +640,23 @@
             }
 
             function pointerUp() {
-                if (!isDragging) return;
-                isDragging = false;
+                if (longPressTimer) {
+                    clearTimeout(longPressTimer);
+                    longPressTimer = null;
+                }
+                
                 gear.style.transition = 'opacity 0.4s ease';
 
-                if (!hasMoved) {
+                if (!hasMoved && !resetTriggered) {
                     if (menu.style.display === 'flex') {
                         menu.style.display = 'none';
                     } else {
+                        positionMenu();
                         menu.style.display = 'flex';
                         renderProjectList();
                     }
                 }
+                isDragging = false;
             }
 
             gear.addEventListener('mousedown', pointerDown);
@@ -609,9 +668,19 @@
             window.addEventListener('touchend', pointerUp);
         }
 
-        // ==========================================
-        // ADICIONAR E RENDERIZAR PROJETOS (Full Screen / Auto-Save)
-        // ==========================================
+        function checkNotificationStatus() {
+            const notifSection = document.getElementById('notification-section');
+            if (!('Notification' in window)) {
+                notifSection.style.display = 'none';
+                return;
+            }
+            if (Notification.permission === 'granted') {
+                notifSection.style.display = 'none';
+            } else {
+                notifSection.style.display = 'flex';
+            }
+        }
+
         function addProject(htmlContent, customName = null) {
             const seqNumber = state.projects.length + 1;
             const name = customName || `Projeto ${seqNumber}`;
@@ -633,8 +702,7 @@
             const activeProj = state.projects.find(p => p.id === state.activeProjectId);
             
             if (activeProj) {
-                // Injeção total na tela mantendo todas as permissões de hardware e isolamento seguro
-                container.innerHTML = `<iframe style="width:100%; height:100%; border:none; position:absolute; top:0; left:0;" allow="camera; microphone; geolocation; fullscreen; accelerometer; gyroscope" sandbox="allow-scripts allow-modals allow-forms allow-same-origin allow-popups" srcdoc="${escapeHtmlAttr(activeProj.html)}"></iframe>`;
+                container.innerHTML = `<iframe style="width:100vw; height:100vh; height:100dvh; border:none; position:absolute; top:0; left:0; right:0; bottom:0; margin:0; padding:0;" allow="camera; microphone; geolocation; fullscreen; accelerometer; gyroscope" sandbox="allow-scripts allow-modals allow-forms allow-same-origin allow-popups" srcdoc="${escapeHtmlAttr(activeProj.html)}"></iframe>`;
             } else {
                 container.innerHTML = `
                     <div class="welcome-msg">
@@ -677,13 +745,12 @@
                         <span class="project-name" contenteditable="true" spellcheck="false">${escapeHtml(proj.name)}</span>
                     </div>
                     <div class="project-actions">
-                        <button class="icon-btn trash" title="Apagar (Segure 2s para apagar todos)">
+                        <button class="icon-btn trash" title="Apagar projeto">
                             <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
                         </button>
                     </div>
                 `;
 
-                // Ativar projeto no clique
                 const infoDiv = item.querySelector('.project-info');
                 infoDiv.addEventListener('click', (e) => {
                     if (e.target.classList.contains('project-name')) return;
@@ -694,7 +761,6 @@
                     document.getElementById('floating-menu').style.display = 'none';
                 });
 
-                // Salvar renomeação automática (Auto-Save)
                 const nameSpan = item.querySelector('.project-name');
                 nameSpan.addEventListener('blur', () => {
                     const newName = nameSpan.innerText.trim();
@@ -706,31 +772,23 @@
                     }
                 });
 
-                // Long-press (2s) no nome/número -> Abre visualizador de código completo
                 setupLongPress(infoDiv, 2000, () => {
                     openCodeViewer(proj);
                 });
 
-                // Long-press (2s) na lixeira -> Apaga todos os projetos (com confirmação)
                 const trashBtn = item.querySelector('.trash');
-                setupLongPress(trashBtn, 2000, () => {
-                    if (confirm("⚠️ ALERTA: Deseja realmente APAGAR TODOS OS PROJETOS?")) {
-                        state.projects = [];
-                        state.activeProjectId = null;
+                trashBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (confirm(`Deseja apagar o projeto "${proj.name}"?
+Clique em OK para Apagar ou Cancelar para Desistir.`)) {
+                        state.projects = state.projects.filter(p => p.id !== proj.id);
+                        if (state.activeProjectId === proj.id) {
+                            state.activeProjectId = state.projects.length > 0 ? state.projects[0].id : null;
+                        }
                         saveState();
                         renderApp();
                         renderProjectList();
-                        document.getElementById('floating-menu').style.display = 'none';
                     }
-                }, () => {
-                    // Clique simples na lixeira -> Apaga apenas este projeto
-                    state.projects = state.projects.filter(p => p.id !== proj.id);
-                    if (state.activeProjectId === proj.id) {
-                        state.activeProjectId = state.projects.length > 0 ? state.projects[0].id : null;
-                    }
-                    saveState();
-                    renderApp();
-                    renderProjectList();
                 });
 
                 listContainer.appendChild(item);
@@ -742,8 +800,7 @@
             return text.replace(/[&<>"']/g, m => map[m]);
         }
 
-        // Helper de Toque Longo (2 Segundos) com prevenção de contexto iOS
-        function setupLongPress(element, duration, onLongPress, onClickNormal) {
+        function setupLongPress(element, duration, onLongPress) {
             let timer = null;
             let triggered = false;
 
@@ -764,24 +821,18 @@
                 }
             };
 
-            const end = (e) => {
-                if (!triggered && onClickNormal && timer) {
-                    cancel();
-                    onClickNormal();
-                }
+            const end = () => {
                 cancel();
             };
 
             element.addEventListener('mousedown', start);
             element.addEventListener('touchstart', start, {passive: false});
-
             element.addEventListener('mouseup', end);
             element.addEventListener('mouseleave', cancel);
             element.addEventListener('touchend', end);
             element.addEventListener('touchcancel', cancel);
         }
 
-        // Visualizador de Código Completo
         let currentViewingProject = null;
 
         function openCodeViewer(proj) {
@@ -793,7 +844,6 @@
         }
 
         function setupEventListeners() {
-            // Modal Copiar / Colar
             const pasteModal = document.getElementById('paste-modal');
             document.getElementById('btn-open-paste-modal').addEventListener('click', () => {
                 document.getElementById('paste-textarea').value = '';
@@ -813,7 +863,6 @@
                 }
             });
 
-            // Arquivo .html nativo
             const fileInput = document.getElementById('file-input-native');
             document.getElementById('btn-trigger-file').addEventListener('click', () => {
                 fileInput.click();
@@ -832,14 +881,12 @@
                 fileInput.value = '';
             });
 
-            // Fechar visualizador
             const closeViewer = () => {
                 document.getElementById('code-viewer-screen').style.display = 'none';
             };
             document.getElementById('btn-close-viewer-top').addEventListener('click', closeViewer);
             document.getElementById('btn-close-viewer-bottom').addEventListener('click', closeViewer);
 
-            // Cópia de 1 clique
             document.getElementById('btn-copy-all-code').addEventListener('click', () => {
                 if (!currentViewingProject) return;
                 navigator.clipboard.writeText(currentViewingProject.html).then(() => {
@@ -856,7 +903,6 @@
                 });
             });
 
-            // Notificações
             document.getElementById('btn-request-notif').addEventListener('click', () => {
                 if (!('Notification' in window)) {
                     alert('Este navegador não suporta notificações.');
@@ -865,12 +911,13 @@
                 Notification.requestPermission().then(permission => {
                     if (permission === 'granted') {
                         alert('Notificações ativadas com sucesso!');
+                        checkNotificationStatus();
                         new Notification('iOS PWA Viewer', {
-                            body: 'Notificações ativadas e funcionando com sucesso!',
+                            body: 'Notificações ativadas e funcionando!',
                             icon: 'icon-192.png'
                         });
                     } else {
-                        alert('Permissão negada.');
+                        alert('Permissão de notificação negada.');
                     }
                 });
             });
