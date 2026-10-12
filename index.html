@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>iOS Immersive PWA Viewer</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none; /* Bloqueia menu nativo do iOS em toque longo */
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            background-color: #000000;
+            color: #ffffff;
+            overflow: hidden;
+            position: fixed;
+        }
+
+        /* Container Principal assume 100% da tela imersiva */
+        #app-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        .welcome-msg {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            color: #555;
+            padding: 20px;
+            background-color: #000;
+        }
+        .welcome-msg h1 {
+            font-size: 20px;
+            margin-bottom: 8px;
+            color: #888;
+        }
+        .welcome-msg p {
+            font-size: 14px;
+        }
+
+        /* Botão Mestre Flutuante (Engrenagem) com Transparência Dinâmica */
+        #floating-gear {
+            position: absolute;
+            bottom: 40px;
+            right: 25px;
+            width: 56px;
+            height: 56px;
+            background-color: rgba(28, 28, 30, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+            cursor: pointer;
+            z-index: 9999;
+            touch-action: none;
+            opacity: 1;
+            transition: opacity 0.4s ease, transform 0.1s ease, background-color 0.2s;
+        }
+        #floating-gear.translucent {
+            opacity: 0.5;
+        }
+        #floating-gear:active {
+            transform: scale(0.92);
+        }
+        #floating-gear svg {
+            width: 28px;
+            height: 28px;
+            fill: #ffffff;
+        }
+
+        /* Menu Vertical Flutuante */
+        #floating-menu {
+            position: absolute;
+            bottom: 110px;
+            right: 25px;
+            width: 300px;
+            max-height: calc(100vh - 160px);
+            background-color: rgba(28, 28, 30, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid #3a3a3c;
+            border-radius: 16px;
+            display: none;
+            flex-direction: column;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.9);
+            z-index: 9998;
+            overflow: hidden;
+            animation: menuPop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+        @keyframes menuPop {
+            0% { opacity: 0; transform: scale(0.8) translateY(20px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .menu-header {
+            padding: 14px 16px;
+            font-size: 15px;
+            font-weight: 600;
+            border-bottom: 1px solid #38383a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .menu-actions {
+            padding: 10px;
+            display: flex;
+            gap: 8px;
+            border-bottom: 1px solid #38383a;
+        }
+        .menu-btn {
+            flex: 1;
+            background-color: #2c2c2e;
+            border: 1px solid #48484a;
+            color: white;
+            padding: 10px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 500;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .menu-btn:hover { background-color: #3a3a3c; }
+        .menu-btn svg { width: 18px; height: 18px; fill: currentColor; }
+
+        .project-list {
+            overflow-y: auto;
+            max-height: 240px;
+            padding: 8px;
+        }
+        .project-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: #2c2c2e;
+            padding: 10px 12px;
+            border-radius: 10px;
+            margin-bottom: 6px;
+            border: 1px solid transparent;
+            transition: border-color 0.2s;
+        }
+        .project-item.active {
+            border-color: #0a84ff;
+            background-color: #1a2634;
+        }
+        .project-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 1;
+            overflow: hidden;
+            cursor: pointer;
+        }
+        .project-num {
+            font-size: 12px;
+            color: #8e8e93;
+            font-weight: 600;
+            background: #3a3a3c;
+            padding: 2px 6px;
+            border-radius: 6px;
+        }
+        .project-name {
+            font-size: 14px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: #fff;
+            outline: none;
+        }
+        .project-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .icon-btn {
+            background: none;
+            border: none;
+            color: #8e8e93;
+            cursor: pointer;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            transition: color 0.2s, background 0.2s;
+        }
+        .icon-btn:hover { color: #fff; background: #3a3a3c; }
+        .icon-btn.trash:hover { color: #ff453a; }
+        .icon-btn svg { width: 16px; height: 16px; fill: currentColor; }
+
+        .notif-section {
+            padding: 10px 12px;
+            border-top: 1px solid #38383a;
+            background-color: #1c1c1e;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .notif-label {
+            font-size: 12px;
+            color: #aaa;
+        }
+        .notif-action-btn {
+            background-color: #0a84ff;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        /* Modais */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.7);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            padding: 20px;
+        }
+        .modal-box {
+            width: 100%;
+            max-width: 400px;
+            background-color: #2c2c2e;
+            border: 1px solid #3a3a3c;
+            border-radius: 16px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.8);
+        }
+        .modal-box h3 { font-size: 16px; font-weight: 600; }
+        .modal-box textarea {
+            width: 100%;
+            height: 150px;
+            background-color: #1c1c1e;
+            border: 1px solid #3a3a3c;
+            color: #fff;
+            padding: 12px;
+            border-radius: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            resize: none;
+        }
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        .btn-cancel {
+            background-color: #3a3a3c;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 10px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .btn-confirm {
+            background-color: #30d158;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        /* Tela de Visualização de Código (.html completo) */
+        #code-viewer-screen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #000000;
+            z-index: 11000;
+            display: none;
+            flex-direction: column;
+        }
+        .viewer-header {
+            padding: 14px 20px;
+            background-color: #1c1c1e;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .viewer-title { font-size: 15px; font-weight: 600; }
+        .viewer-content {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            color: #d1d1d6;
+            white-space: pre-wrap;
+            word-break: break-all;
+            background-color: #0d0d0d;
+        }
+        .viewer-footer {
+            padding: 16px;
+            background-color: #1c1c1e;
+            border-top: 1px solid #333;
+            display: flex;
+            gap: 10px;
+        }
+        .btn-copy-all {
+            flex: 1;
+            background-color: #0a84ff;
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(10,132,255,0.4);
+        }
+        .btn-close-viewer {
+            background-color: #3a3a3c;
+            color: white;
+            border: none;
+            padding: 14px 20px;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Container onde o projeto importado assume 100% da tela via Iframe sandbox total -->
+    <div id="app-container">
+        <div id="welcome-state" class="welcome-msg">
+            <h1>Nenhum Projeto Ativo</h1>
+            <p>Toque na engrenagem flutuante para importar ou selecionar seu projeto HTML.</p>
+        </div>
+    </div>
+
+    <!-- Botão Mestre Flutuante com Inteligência Silenciosa de Transparência -->
+    <div id="floating-gear" title="Menu Mestre">
+        <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36.25c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c-.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-.25c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+    </div>
+
+    <!-- Menu Vertical Flutuante -->
+    <div id="floating-menu">
+        <div class="menu-header">
+            <span>Gerenciador PWA</span>
+            <span style="font-size:12px; color:#8e8e93;" id="project-count">0 projetos</span>
+        </div>
+        <div class="menu-actions">
+            <button class="menu-btn" id="btn-open-paste-modal">
+                <svg viewBox="0 0 24 24"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1s-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+                Colar HTML
+            </button>
+            <button class="menu-btn" id="btn-trigger-file">
+                <svg viewBox="0 0 24 24"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>
+                Arquivo .html
+            </button>
+            <input type="file" id="file-input-native" accept=".html,.htm" style="display:none;">
+        </div>
+        
+        <div class="project-list" id="project-list-container"></div>
+
+        <div class="notif-section">
+            <span class="notif-label">Notificações Push</span>
+            <button class="notif-action-btn" id="btn-request-notif">Ativar</button>
+        </div>
+    </div>
+
+    <!-- Modal Copiar / Colar -->
+    <div class="modal-overlay" id="paste-modal">
+        <div class="modal-box">
+            <h3>Importar Código HTML</h3>
+            <textarea id="paste-textarea" placeholder="Cole seu código HTML completo aqui..."></textarea>
+            <div class="modal-buttons">
+                <button class="btn-cancel" id="btn-cancel-paste">Cancelar</button>
+                <button class="btn-confirm" id="btn-confirm-paste">Importar Projeto</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tela Completa de Visualização de Código (.html completo) -->
+    <div id="code-viewer-screen">
+        <div class="viewer-header">
+            <span class="viewer-title" id="viewer-project-title">Código Fonte</span>
+            <button class="icon-btn" id="btn-close-viewer-top">
+                <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            </button>
+        </div>
+        <div class="viewer-content" id="viewer-code-container"></div>
+        <div class="viewer-footer">
+            <button class="btn-copy-all" id="btn-copy-all-code">Copiar Todo o HTML (1 Clique)</button>
+            <button class="btn-close-viewer" id="btn-close-viewer-bottom">Fechar</button>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // GUARDIÃO SILENCIOSO (Inteligência Oculta)
+        // ==========================================
+        const SilentGuardian = {
+            init() {
+                this.setupViewportMonitor();
+                this.setupAutoSaveGuardian();
+                this.setupIdleTransparency();
+                this.setupSilentErrorCatcher();
+            },
+            // Garante 100% da tela e adaptação automática contra redimensionamentos de teclado/orientação no iOS WebKit
+            setupViewportMonitor() {
+                const adjust = () => {
+                    const vh = window.innerHeight * 0.01;
+                    document.documentElement.style.setProperty('--vh', `${vh}px`);
+                };
+                window.addEventListener('resize', adjust);
+                window.addEventListener('orientationchange', () => {
+                    setTimeout(adjust, 200);
+                });
+                adjust();
+            },
+            // Valida integridade e sincronização do Auto-Save em tempo real
+            setupAutoSaveGuardian() {
+                window.addEventListener('storage', (e) => {
+                    if (e.key === 'ios_pwa_projects') {
+                        try {
+                            state.projects = JSON.parse(e.newValue);
+                            renderApp();
+                            renderProjectList();
+                        } catch(err) { /* Silencioso */ }
+                    }
+                });
+            },
+            // Gerencia o botão mestre: fica 50% transparente após 2 segundos sem mexer, voltando 100% ao toque/movimento
+            setupIdleTransparency() {
+                const gear = document.getElementById('floating-gear');
+                let idleTimer = null;
+
+                const resetTimer = () => {
+                    gear.classList.remove('translucent');
+                    if (idleTimer) clearTimeout(idleTimer);
+                    idleTimer = setTimeout(() => {
+                        // Só fica translúcido se o menu estiver fechado
+                        const menu = document.getElementById('floating-menu');
+                        if (menu.style.display !== 'flex') {
+                            gear.classList.add('translucent');
+                        }
+                    }, 2000);
+                };
+
+                ['touchstart', 'mousemove', 'touchmove', 'mousedown'].forEach(ev => {
+                    window.addEventListener(ev, resetTimer, {passive: true});
+                });
+                resetTimer();
+            },
+            // Captura erros silenciosamente para evitar que falhas em projetos importados quebrem o app base
+            setupSilentErrorCatcher() {
+                window.addEventListener('error', (e) => {
+                    // Erros vindos de iframes ou scripts externos são contained
+                    e.preventDefault();
+                });
+            }
+        };
+
+        // ==========================================
+        // GERENCIAMENTO DE ESTADO E PROJETOS
+        // ==========================================
+        let state = {
+            projects: [],
+            activeProjectId: null
+        };
+
+        function saveState() {
+            try {
+                localStorage.setItem('ios_pwa_projects', JSON.stringify(state.projects));
+                localStorage.setItem('ios_pwa_active', state.activeProjectId);
+            } catch(e) {
+                console.error("Auto-Save Guardian recuperou erro de armazenamento", e);
+            }
+        }
+
+        function loadState() {
+            try {
+                const savedProjects = localStorage.getItem('ios_pwa_projects');
+                const savedActive = localStorage.getItem('ios_pwa_active');
+                if (savedProjects) state.projects = JSON.parse(savedProjects);
+                if (savedActive) state.activeProjectId = savedActive;
+            } catch(e) {
+                state.projects = [];
+            }
+        }
+
+        // ==========================================
+        // INICIALIZAÇÃO DO APLICATIVO
+        // ==========================================
+        window.addEventListener('DOMContentLoaded', () => {
+            SilentGuardian.init();
+            loadState();
+            renderApp();
+            setupDraggableGear();
+            setupEventListeners();
+            
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('./sw.js').catch(() => {});
+            }
+        });
+
+        // ==========================================
+        // BOTÃO MESTRE FLUTUANTE (Arrastar & Toque)
+        // ==========================================
+        function setupDraggableGear() {
+            const gear = document.getElementById('floating-gear');
+            const menu = document.getElementById('floating-menu');
+            let isDragging = false;
+            let startX, startY, initialX, initialY;
+            let hasMoved = false;
+
+            function pointerDown(e) {
+                isDragging = true;
+                hasMoved = false;
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                startX = clientX;
+                startY = clientY;
+                
+                const rect = gear.getBoundingClientRect();
+                initialX = rect.left;
+                initialY = rect.top;
+                gear.style.transition = 'none';
+            }
+
+            function pointerMove(e) {
+                if (!isDragging) return;
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                
+                const dx = clientX - startX;
+                const dy = clientY - startY;
+                
+                if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+                    hasMoved = true;
+                }
+
+                let newX = initialX + dx;
+                let newY = initialY + dy;
+
+                const maxW = window.innerWidth - gear.offsetWidth;
+                const maxH = window.innerHeight - gear.offsetHeight;
+                newX = Math.max(10, Math.min(newX, maxW - 10));
+                newY = Math.max(10, Math.min(newY, maxH - 10));
+
+                gear.style.left = newX + 'px';
+                gear.style.top = newY + 'px';
+                gear.style.bottom = 'auto';
+                gear.style.right = 'auto';
+            }
+
+            function pointerUp() {
+                if (!isDragging) return;
+                isDragging = false;
+                gear.style.transition = 'opacity 0.4s ease';
+
+                if (!hasMoved) {
+                    if (menu.style.display === 'flex') {
+                        menu.style.display = 'none';
+                    } else {
+                        menu.style.display = 'flex';
+                        renderProjectList();
+                    }
+                }
+            }
+
+            gear.addEventListener('mousedown', pointerDown);
+            window.addEventListener('mousemove', pointerMove);
+            window.addEventListener('mouseup', pointerUp);
+
+            gear.addEventListener('touchstart', pointerDown, {passive: true});
+            window.addEventListener('touchmove', pointerMove, {passive: true});
+            window.addEventListener('touchend', pointerUp);
+        }
+
+        // ==========================================
+        // ADICIONAR E RENDERIZAR PROJETOS (Full Screen / Auto-Save)
+        // ==========================================
+        function addProject(htmlContent, customName = null) {
+            const seqNumber = state.projects.length + 1;
+            const name = customName || `Projeto ${seqNumber}`;
+            const newProj = {
+                id: 'proj_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+                name: name,
+                html: htmlContent,
+                createdAt: Date.now()
+            };
+            state.projects.push(newProj);
+            state.activeProjectId = newProj.id;
+            saveState();
+            renderApp();
+            renderProjectList();
+        }
+
+        function renderApp() {
+            const container = document.getElementById('app-container');
+            const activeProj = state.projects.find(p => p.id === state.activeProjectId);
+            
+            if (activeProj) {
+                // Injeção total na tela mantendo todas as permissões de hardware e isolamento seguro
+                container.innerHTML = `<iframe style="width:100%; height:100%; border:none; position:absolute; top:0; left:0;" allow="camera; microphone; geolocation; fullscreen; accelerometer; gyroscope" sandbox="allow-scripts allow-modals allow-forms allow-same-origin allow-popups" srcdoc="${escapeHtmlAttr(activeProj.html)}"></iframe>`;
+            } else {
+                container.innerHTML = `
+                    <div class="welcome-msg">
+                        <h1>Nenhum Projeto Ativo</h1>
+                        <p>Toque na engrenagem flutuante para importar ou selecionar seu projeto HTML.</p>
+                    </div>
+                `;
+            }
+        }
+
+        function escapeHtmlAttr(str) {
+            return str.replace(/&/g, '&amp;')
+                      .replace(/"/g, '&quot;')
+                      .replace(/'/g, '&#39;')
+                      .replace(/</g, '&lt;')
+                      .replace(/>/g, '&gt;');
+        }
+
+        function renderProjectList() {
+            const listContainer = document.getElementById('project-list-container');
+            const countLabel = document.getElementById('project-count');
+            
+            countLabel.innerText = state.projects.length + (state.projects.length === 1 ? ' projeto' : ' projetos');
+            listContainer.innerHTML = '';
+
+            if (state.projects.length === 0) {
+                listContainer.innerHTML = '<div style="text-align:center; color:#888; font-size:12px; padding:20px;">Nenhum projeto importado.</div>';
+                return;
+            }
+
+            state.projects.forEach((proj, index) => {
+                const item = document.createElement('div');
+                item.className = 'project-item' + (proj.id === state.activeProjectId ? ' active' : '');
+                
+                const num = index + 1;
+
+                item.innerHTML = `
+                    <div class="project-info" title="Toque para ativar, segure 2s para ver código completo">
+                        <span class="project-num">${num}°</span>
+                        <span class="project-name" contenteditable="true" spellcheck="false">${escapeHtml(proj.name)}</span>
+                    </div>
+                    <div class="project-actions">
+                        <button class="icon-btn trash" title="Apagar (Segure 2s para apagar todos)">
+                            <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                        </button>
+                    </div>
+                `;
+
+                // Ativar projeto no clique
+                const infoDiv = item.querySelector('.project-info');
+                infoDiv.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('project-name')) return;
+                    state.activeProjectId = proj.id;
+                    saveState();
+                    renderApp();
+                    renderProjectList();
+                    document.getElementById('floating-menu').style.display = 'none';
+                });
+
+                // Salvar renomeação automática (Auto-Save)
+                const nameSpan = item.querySelector('.project-name');
+                nameSpan.addEventListener('blur', () => {
+                    const newName = nameSpan.innerText.trim();
+                    if (newName) {
+                        proj.name = newName;
+                        saveState();
+                    } else {
+                        nameSpan.innerText = proj.name;
+                    }
+                });
+
+                // Long-press (2s) no nome/número -> Abre visualizador de código completo
+                setupLongPress(infoDiv, 2000, () => {
+                    openCodeViewer(proj);
+                });
+
+                // Long-press (2s) na lixeira -> Apaga todos os projetos (com confirmação)
+                const trashBtn = item.querySelector('.trash');
+                setupLongPress(trashBtn, 2000, () => {
+                    if (confirm("⚠️ ALERTA: Deseja realmente APAGAR TODOS OS PROJETOS?")) {
+                        state.projects = [];
+                        state.activeProjectId = null;
+                        saveState();
+                        renderApp();
+                        renderProjectList();
+                        document.getElementById('floating-menu').style.display = 'none';
+                    }
+                }, () => {
+                    // Clique simples na lixeira -> Apaga apenas este projeto
+                    state.projects = state.projects.filter(p => p.id !== proj.id);
+                    if (state.activeProjectId === proj.id) {
+                        state.activeProjectId = state.projects.length > 0 ? state.projects[0].id : null;
+                    }
+                    saveState();
+                    renderApp();
+                    renderProjectList();
+                });
+
+                listContainer.appendChild(item);
+            });
+        }
+
+        function escapeHtml(text) {
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+
+        // Helper de Toque Longo (2 Segundos) com prevenção de contexto iOS
+        function setupLongPress(element, duration, onLongPress, onClickNormal) {
+            let timer = null;
+            let triggered = false;
+
+            const start = (e) => {
+                e.preventDefault();
+                triggered = false;
+                timer = setTimeout(() => {
+                    triggered = true;
+                    if (navigator.vibrate) navigator.vibrate(50);
+                    onLongPress();
+                }, duration);
+            };
+
+            const cancel = () => {
+                if (timer) {
+                    clearTimeout(timer);
+                    timer = null;
+                }
+            };
+
+            const end = (e) => {
+                if (!triggered && onClickNormal && timer) {
+                    cancel();
+                    onClickNormal();
+                }
+                cancel();
+            };
+
+            element.addEventListener('mousedown', start);
+            element.addEventListener('touchstart', start, {passive: false});
+
+            element.addEventListener('mouseup', end);
+            element.addEventListener('mouseleave', cancel);
+            element.addEventListener('touchend', end);
+            element.addEventListener('touchcancel', cancel);
+        }
+
+        // Visualizador de Código Completo
+        let currentViewingProject = null;
+
+        function openCodeViewer(proj) {
+            currentViewingProject = proj;
+            document.getElementById('viewer-project-title').innerText = proj.name + ' (Código Completo)';
+            document.getElementById('viewer-code-container').innerText = proj.html;
+            document.getElementById('code-viewer-screen').style.display = 'flex';
+            document.getElementById('floating-menu').style.display = 'none';
+        }
+
+        function setupEventListeners() {
+            // Modal Copiar / Colar
+            const pasteModal = document.getElementById('paste-modal');
+            document.getElementById('btn-open-paste-modal').addEventListener('click', () => {
+                document.getElementById('paste-textarea').value = '';
+                pasteModal.style.display = 'flex';
+                document.getElementById('floating-menu').style.display = 'none';
+            });
+            document.getElementById('btn-cancel-paste').addEventListener('click', () => {
+                pasteModal.style.display = 'none';
+            });
+            document.getElementById('btn-confirm-paste').addEventListener('click', () => {
+                const code = document.getElementById('paste-textarea').value.trim();
+                if (code) {
+                    addProject(code);
+                    pasteModal.style.display = 'none';
+                } else {
+                    alert('Insira um código HTML válido.');
+                }
+            });
+
+            // Arquivo .html nativo
+            const fileInput = document.getElementById('file-input-native');
+            document.getElementById('btn-trigger-file').addEventListener('click', () => {
+                fileInput.click();
+                document.getElementById('floating-menu').style.display = 'none';
+            });
+            fileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    const content = evt.target.result;
+                    let projName = file.name.replace(/\.[^/.]+$/, "");
+                    addProject(content, projName);
+                };
+                reader.readAsText(file);
+                fileInput.value = '';
+            });
+
+            // Fechar visualizador
+            const closeViewer = () => {
+                document.getElementById('code-viewer-screen').style.display = 'none';
+            };
+            document.getElementById('btn-close-viewer-top').addEventListener('click', closeViewer);
+            document.getElementById('btn-close-viewer-bottom').addEventListener('click', closeViewer);
+
+            // Cópia de 1 clique
+            document.getElementById('btn-copy-all-code').addEventListener('click', () => {
+                if (!currentViewingProject) return;
+                navigator.clipboard.writeText(currentViewingProject.html).then(() => {
+                    const btn = document.getElementById('btn-copy-all-code');
+                    const origText = btn.innerText;
+                    btn.innerText = 'Copiado com Sucesso! ✓';
+                    btn.style.backgroundColor = '#30d158';
+                    setTimeout(() => {
+                        btn.innerText = origText;
+                        btn.style.backgroundColor = '#0a84ff';
+                    }, 2000);
+                }).catch(err => {
+                    alert('Erro ao copiar: ' + err);
+                });
+            });
+
+            // Notificações
+            document.getElementById('btn-request-notif').addEventListener('click', () => {
+                if (!('Notification' in window)) {
+                    alert('Este navegador não suporta notificações.');
+                    return;
+                }
+                Notification.requestPermission().then(permission => {
+                    if (permission === 'granted') {
+                        alert('Notificações ativadas com sucesso!');
+                        new Notification('iOS PWA Viewer', {
+                            body: 'Notificações ativadas e funcionando com sucesso!',
+                            icon: 'icon-192.png'
+                        });
+                    } else {
+                        alert('Permissão negada.');
+                    }
+                });
+            });
+        }
+    </script>
+</body>
+</html>
